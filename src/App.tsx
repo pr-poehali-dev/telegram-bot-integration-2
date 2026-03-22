@@ -1,5 +1,12 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
+import { auth } from "@/lib/firebase";
+import {
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} from "firebase/auth";
 
 type Screen = "login" | "chats" | "chat" | "profile" | "notifications" | "settings" | "history" | "help";
 
@@ -122,6 +129,16 @@ export default function App() {
   const [code, setCode] = useState("");
   const [notifs, setNotifs] = useState<Notification[]>(NOTIFICATIONS_DATA);
 
+  // Auth mode state
+  const [authMethod, setAuthMethod] = useState<"telegram" | "email">("telegram");
+  const [emailMode, setEmailMode] = useState<"login" | "register">("login");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(null);
+
   const unreadNotifs = notifs.filter(n => !n.read).length;
   const unreadChats = CHATS.reduce((a, c) => a + c.unread, 0);
 
@@ -146,6 +163,39 @@ export default function App() {
     }
   }
 
+  async function handleEmailAuth() {
+    setAuthError("");
+    setAuthLoading(true);
+    try {
+      if (emailMode === "register") {
+        const cred = await createUserWithEmailAndPassword(auth, email, password);
+        if (displayName.trim()) {
+          await updateProfile(cred.user, { displayName: displayName.trim() });
+        }
+        setCurrentUser({ name: displayName || email.split("@")[0], email });
+      } else {
+        const cred = await signInWithEmailAndPassword(auth, email, password);
+        setCurrentUser({
+          name: cred.user.displayName || cred.user.email?.split("@")[0] || "Пользователь",
+          email: cred.user.email || email,
+        });
+      }
+      setLoginStep("done");
+      setTimeout(() => { setLoggedIn(true); setActiveTab("chats"); }, 900);
+    } catch (err: unknown) {
+      const code = (err as { code?: string })?.code || "";
+      if (code === "auth/email-already-in-use") setAuthError("Email уже зарегистрирован");
+      else if (code === "auth/wrong-password" || code === "auth/invalid-credential") setAuthError("Неверный email или пароль");
+      else if (code === "auth/user-not-found") setAuthError("Пользователь не найден");
+      else if (code === "auth/weak-password") setAuthError("Пароль должен быть не менее 6 символов");
+      else if (code === "auth/invalid-email") setAuthError("Неверный формат email");
+      else if (code === "auth/too-many-requests") setAuthError("Слишком много попыток. Попробуйте позже");
+      else setAuthError("Ошибка входа. Проверьте данные");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   if (!loggedIn) {
     return (
       <div className="fixed inset-0 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #0d1821 0%, #17212b 60%, #1a2d3d 100%)" }}>
@@ -160,27 +210,30 @@ export default function App() {
         </div>
 
         <div className="mobile-frame flex flex-col" style={{ background: "var(--tg-bg)" }}>
+          {/* Status bar */}
           <div className="flex items-center justify-between px-6 pt-4 pb-1 text-xs shrink-0" style={{ color: "var(--tg-text)" }}>
             <span className="font-semibold">9:41</span>
             <div className="flex items-center gap-1.5"><Icon name="Signal" size={12} /><Icon name="Wifi" size={12} /><Icon name="Battery" size={12} /></div>
           </div>
 
-          <div className="flex-1 flex flex-col items-center justify-center px-8 animate-fade-in">
-            <div className="mb-8 flex flex-col items-center">
-              <div className="relative mb-4">
-                <div className="w-24 h-24 rounded-[28px] flex items-center justify-center text-5xl font-bold"
-                  style={{ background: "linear-gradient(145deg, #1a96d4 0%, #2AABEE 100%)", boxShadow: "0 12px 40px rgba(42,171,238,0.45), 0 2px 8px rgba(0,0,0,0.3)" }}>
+          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-8 py-6 animate-fade-in">
+            {/* Logo */}
+            <div className="mb-6 flex flex-col items-center">
+              <div className="relative mb-3">
+                <div className="w-20 h-20 rounded-[24px] flex items-center justify-center text-4xl font-bold"
+                  style={{ background: "linear-gradient(145deg, #1a96d4 0%, #2AABEE 100%)", boxShadow: "0 12px 40px rgba(42,171,238,0.45)" }}>
                   N
                 </div>
-                <div className="absolute -bottom-1.5 -right-1.5 w-7 h-7 rounded-full flex items-center justify-center"
-                  style={{ background: "#4caf76", border: "2.5px solid var(--tg-bg)", boxShadow: "0 2px 8px rgba(76,175,118,0.4)" }}>
-                  <Icon name="Shield" size={12} color="white" />
+                <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center"
+                  style={{ background: "#4caf76", border: "2px solid var(--tg-bg)" }}>
+                  <Icon name="Shield" size={11} color="white" />
                 </div>
               </div>
-              <h1 className="text-4xl font-bold tracking-tight" style={{ color: "var(--tg-text)" }}>NeMAX</h1>
-              <p className="text-sm mt-1.5 font-medium" style={{ color: "var(--tg-text-muted)" }}>Безопасный мессенджер</p>
+              <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--tg-text)" }}>NeMAX</h1>
+              <p className="text-xs mt-1 font-medium" style={{ color: "var(--tg-text-muted)" }}>Безопасный мессенджер</p>
             </div>
 
+            {/* Success state */}
             {loginStep === "done" ? (
               <div className="flex flex-col items-center gap-3 animate-scale-in">
                 <div className="w-16 h-16 rounded-full flex items-center justify-center"
@@ -189,16 +242,18 @@ export default function App() {
                 </div>
                 <p className="text-base font-semibold" style={{ color: "var(--tg-text)" }}>Вход выполнен!</p>
               </div>
+
             ) : loginStep === "code" ? (
+              /* Telegram OTP step */
               <div className="w-full space-y-5 animate-slide-up">
                 <div className="text-center">
                   <p className="text-base font-semibold" style={{ color: "var(--tg-text)" }}>Код подтверждения</p>
-                  <p className="text-sm mt-1" style={{ color: "var(--tg-text-muted)" }}>Мы отправили код на {phone || "+7 (999) 000-00-00"}</p>
+                  <p className="text-sm mt-1" style={{ color: "var(--tg-text-muted)" }}>Отправили код на {phone || "+7 (999) 000-00-00"}</p>
                 </div>
                 <div className="flex gap-3 justify-center">
                   {[0,1,2,3,4].map(i => (
                     <input key={i} type="text" maxLength={1}
-                      className="w-11 h-13 text-center text-xl font-bold rounded-xl outline-none transition-all"
+                      className="text-center text-xl font-bold rounded-xl outline-none transition-all"
                       style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)", height: "52px", width: "44px" }}
                       value={code[i] || ""}
                       onChange={e => {
@@ -218,31 +273,123 @@ export default function App() {
                 <p className="text-center text-sm" style={{ color: "var(--tg-text-muted)" }}>
                   Не получили код? <span style={{ color: "var(--tg-blue)" }} className="cursor-pointer">Отправить снова</span>
                 </p>
+                <button onClick={() => setLoginStep("phone")} className="w-full text-center text-sm" style={{ color: "var(--tg-text-muted)" }}>
+                  ← Назад
+                </button>
               </div>
+
             ) : (
-              <div className="w-full space-y-4 animate-slide-up">
-                <div className="text-center">
-                  <p className="text-base font-semibold" style={{ color: "var(--tg-text)" }}>Войти через Telegram</p>
-                  <p className="text-sm mt-1" style={{ color: "var(--tg-text-muted)" }}>Введите номер, привязанный к Telegram</p>
+              /* Auth tabs */
+              <div className="w-full animate-slide-up">
+                {/* Method tabs */}
+                <div className="flex rounded-2xl p-1 mb-5" style={{ background: "var(--tg-surface)" }}>
+                  {([
+                    { key: "telegram", label: "Telegram", emoji: "✈️" },
+                    { key: "email", label: "Email", emoji: "📧" },
+                  ] as { key: "telegram" | "email"; label: string; emoji: string }[]).map(tab => (
+                    <button key={tab.key} onClick={() => { setAuthMethod(tab.key); setAuthError(""); }}
+                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                      style={{
+                        background: authMethod === tab.key ? "var(--tg-blue)" : "transparent",
+                        color: authMethod === tab.key ? "white" : "var(--tg-text-muted)"
+                      }}>
+                      <span>{tab.emoji}</span> {tab.label}
+                    </button>
+                  ))}
                 </div>
-                <input type="tel" placeholder="+7 (999) 000-00-00" value={phone} onChange={e => setPhone(e.target.value)}
-                  className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
-                  style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}
-                />
-                <button onClick={handleLogin} className="w-full py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-95"
-                  style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)", color: "white" }}>
-                  Далее →
-                </button>
-                <div className="flex items-center gap-3">
-                  <div className="flex-1 h-px" style={{ background: "var(--tg-border)" }} />
-                  <span className="text-xs" style={{ color: "var(--tg-text-muted)" }}>или</span>
-                  <div className="flex-1 h-px" style={{ background: "var(--tg-border)" }} />
-                </div>
-                <button onClick={handleLogin} className="w-full py-3.5 rounded-2xl font-semibold text-base flex items-center justify-center gap-2 transition-all active:scale-95"
-                  style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}>
-                  <span className="text-lg">✈️</span> Открыть в Telegram
-                </button>
-                <div className="flex items-center gap-2 p-3 rounded-xl" style={{ background: "rgba(42,171,238,0.07)", border: "1px solid rgba(42,171,238,0.18)" }}>
+
+                {/* TELEGRAM tab */}
+                {authMethod === "telegram" && (
+                  <div className="space-y-4">
+                    <div className="text-center mb-1">
+                      <p className="text-sm font-medium" style={{ color: "var(--tg-text-muted)" }}>Введите номер, привязанный к Telegram</p>
+                    </div>
+                    <input type="tel" placeholder="+7 (999) 000-00-00" value={phone} onChange={e => setPhone(e.target.value)}
+                      className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
+                      style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}
+                    />
+                    <button onClick={handleLogin} className="w-full py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-95"
+                      style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)", color: "white" }}>
+                      Далее →
+                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 h-px" style={{ background: "var(--tg-border)" }} />
+                      <span className="text-xs" style={{ color: "var(--tg-text-muted)" }}>или</span>
+                      <div className="flex-1 h-px" style={{ background: "var(--tg-border)" }} />
+                    </div>
+                    <button onClick={handleLogin} className="w-full py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
+                      style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}>
+                      <span className="text-base">✈️</span> Открыть в Telegram
+                    </button>
+                  </div>
+                )}
+
+                {/* EMAIL tab */}
+                {authMethod === "email" && (
+                  <div className="space-y-3">
+                    {/* Login / Register sub-tabs */}
+                    <div className="flex rounded-xl overflow-hidden mb-1" style={{ border: "1px solid var(--tg-border)" }}>
+                      {([
+                        { key: "login", label: "Войти" },
+                        { key: "register", label: "Регистрация" },
+                      ] as { key: "login" | "register"; label: string }[]).map(m => (
+                        <button key={m.key} onClick={() => { setEmailMode(m.key); setAuthError(""); }}
+                          className="flex-1 py-2 text-sm font-semibold transition-all"
+                          style={{
+                            background: emailMode === m.key ? "rgba(42,171,238,0.15)" : "transparent",
+                            color: emailMode === m.key ? "var(--tg-blue)" : "var(--tg-text-muted)"
+                          }}>
+                          {m.label}
+                        </button>
+                      ))}
+                    </div>
+
+                    {emailMode === "register" && (
+                      <input type="text" placeholder="Имя" value={displayName} onChange={e => setDisplayName(e.target.value)}
+                        className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
+                        style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}
+                      />
+                    )}
+                    <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)}
+                      className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
+                      style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}
+                    />
+                    <input type="password" placeholder="Пароль" value={password} onChange={e => setPassword(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
+                      className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
+                      style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}
+                    />
+
+                    {authError && (
+                      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl animate-fade-in"
+                        style={{ background: "rgba(229,57,53,0.1)", border: "1px solid rgba(229,57,53,0.25)" }}>
+                        <Icon name="AlertCircle" size={14} color="var(--tg-red)" />
+                        <p className="text-xs font-medium" style={{ color: "var(--tg-red)" }}>{authError}</p>
+                      </div>
+                    )}
+
+                    <button onClick={handleEmailAuth} disabled={authLoading}
+                      className="w-full py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-95 flex items-center justify-center gap-2"
+                      style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)", color: "white", opacity: authLoading ? 0.7 : 1 }}>
+                      {authLoading ? (
+                        <>
+                          <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                          <span>Загрузка...</span>
+                        </>
+                      ) : (
+                        emailMode === "login" ? "Войти" : "Создать аккаунт"
+                      )}
+                    </button>
+
+                    {emailMode === "login" && (
+                      <p className="text-center text-xs" style={{ color: "var(--tg-text-muted)" }}>
+                        <span style={{ color: "var(--tg-blue)" }} className="cursor-pointer">Забыли пароль?</span>
+                      </p>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2 mt-4 p-3 rounded-xl" style={{ background: "rgba(42,171,238,0.07)", border: "1px solid rgba(42,171,238,0.18)" }}>
                   <Icon name="Lock" size={13} color="#2AABEE" />
                   <p className="text-xs" style={{ color: "var(--tg-text-muted)" }}>Данные шифруются E2E. Мы не храним пароли.</p>
                 </div>
@@ -437,10 +584,16 @@ export default function App() {
               </div>
               <div className="mx-4 mb-5 p-4 rounded-2xl flex items-center gap-3" style={{ background: "var(--tg-surface)" }}>
                 <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold"
-                  style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)" }}>А</div>
+                  style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)" }}>
+                  {(currentUser?.name || auth.currentUser?.displayName || "U")[0].toUpperCase()}
+                </div>
                 <div>
-                  <p className="font-semibold" style={{ color: "var(--tg-text)" }}>Алексей Новиков</p>
-                  <p className="text-sm" style={{ color: "var(--tg-blue)" }}>@nemax_user</p>
+                  <p className="font-semibold" style={{ color: "var(--tg-text)" }}>
+                    {currentUser?.name || auth.currentUser?.displayName || "Пользователь"}
+                  </p>
+                  <p className="text-sm" style={{ color: "var(--tg-blue)" }}>
+                    {authMethod === "email" ? (currentUser?.email || "") : "@nemax_user"}
+                  </p>
                 </div>
                 <Icon name="ChevronRight" size={20} color="var(--tg-text-muted)" className="ml-auto" />
               </div>
@@ -472,7 +625,13 @@ export default function App() {
               <div className="mx-4 mb-6">
                 <button className="w-full py-3.5 rounded-2xl text-center font-semibold transition-all active:scale-95"
                   style={{ background: "rgba(229,57,53,0.1)", color: "var(--tg-red)", border: "1px solid rgba(229,57,53,0.2)" }}
-                  onClick={() => { setLoggedIn(false); setLoginStep("phone"); }}>
+                  onClick={async () => {
+                    if (authMethod === "email") await signOut(auth).catch(() => {});
+                    setLoggedIn(false);
+                    setLoginStep("phone");
+                    setCurrentUser(null);
+                    setEmail(""); setPassword(""); setDisplayName("");
+                  }}>
                   Выйти из аккаунта
                 </button>
               </div>
@@ -519,18 +678,28 @@ export default function App() {
               <div className="flex flex-col items-center py-6 px-4">
                 <div className="relative mb-4">
                   <div className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold"
-                    style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)", boxShadow: "0 6px 24px rgba(42,171,238,0.45)" }}>А</div>
+                    style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)", boxShadow: "0 6px 24px rgba(42,171,238,0.45)" }}>
+                    {(currentUser?.name || auth.currentUser?.displayName || "U")[0].toUpperCase()}
+                  </div>
                   <div className="absolute bottom-0.5 right-0.5 w-7 h-7 rounded-full flex items-center justify-center"
                     style={{ background: "var(--tg-blue)", border: "2.5px solid var(--tg-bg)" }}>
                     <Icon name="Camera" size={12} color="white" />
                   </div>
                   <div className="absolute bottom-0 left-0 w-4 h-4 rounded-full" style={{ background: "var(--tg-green)", border: "2px solid var(--tg-bg)" }} />
                 </div>
-                <h3 className="text-xl font-bold" style={{ color: "var(--tg-text)" }}>Алексей Новиков</h3>
-                <p className="text-sm mt-1 font-medium" style={{ color: "var(--tg-blue)" }}>@nemax_user</p>
+                <h3 className="text-xl font-bold" style={{ color: "var(--tg-text)" }}>
+                  {currentUser?.name || auth.currentUser?.displayName || "Пользователь"}
+                </h3>
+                <p className="text-sm mt-1 font-medium" style={{ color: "var(--tg-blue)" }}>
+                  {authMethod === "email"
+                    ? (currentUser?.email || auth.currentUser?.email || "")
+                    : (phone ? `+${phone.replace(/\D/g, "")}` : "@nemax_user")}
+                </p>
                 <div className="flex items-center gap-1.5 mt-1">
-                  <Icon name="Phone" size={12} color="var(--tg-text-muted)" />
-                  <span className="text-xs" style={{ color: "var(--tg-text-muted)" }}>+7 (999) 123-45-67</span>
+                  <Icon name={authMethod === "email" ? "Mail" : "Phone"} size={12} color="var(--tg-text-muted)" />
+                  <span className="text-xs" style={{ color: "var(--tg-text-muted)" }}>
+                    {authMethod === "email" ? "Вход через Email" : "Вход через Telegram"}
+                  </span>
                 </div>
               </div>
 
@@ -546,9 +715,9 @@ export default function App() {
               <div className="px-4 mb-4">
                 <div className="rounded-2xl overflow-hidden" style={{ background: "var(--tg-surface)" }}>
                   {([
-                    { icon: "Mail", label: "Email", value: "alexey@mail.ru", color: "" },
-                    { icon: "MapPin", label: "Город", value: "Москва", color: "" },
-                    { icon: "Calendar", label: "Зарегистрирован", value: "15 фев 2026", color: "" },
+                    { icon: "Mail", label: "Email", value: currentUser?.email || auth.currentUser?.email || "—", color: "" },
+                    { icon: "User", label: "Метод входа", value: authMethod === "email" ? "Email / пароль" : "Telegram", color: "" },
+                    { icon: "Calendar", label: "Зарегистрирован", value: "22 мар 2026", color: "" },
                     { icon: "Shield", label: "Статус 2FA", value: "Активна", color: "#4caf76" },
                   ] as { icon: string; label: string; value: string; color: string }[]).map((item, i) => (
                     <div key={item.label} className={`flex items-center gap-3 px-4 py-3.5 tap-highlight ${i > 0 ? "border-t" : ""}`}
