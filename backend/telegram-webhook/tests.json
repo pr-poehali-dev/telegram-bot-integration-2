@@ -1,0 +1,29 @@
+{
+  "tests": [
+    {
+      "name": "Webhook health check",
+      "method": "GET",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedBody": {"status": "NeMAX Bot webhook is running"},
+      "bodyMatcher": "partial"
+    },
+    {
+      "name": "Webhook POST /start command",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "update_id": 1,
+        "message": {
+          "message_id": 1,
+          "from": {"id": 123456, "first_name": "Алексей", "username": "test_user"},
+          "chat": {"id": 123456, "type": "private"},
+          "text": "/start"
+        }
+      },
+      "expectedStatus": 200,
+      "expectedBody": {"ok": true},
+      "bodyMatcher": "partial"
+    }
+  ]
+}
