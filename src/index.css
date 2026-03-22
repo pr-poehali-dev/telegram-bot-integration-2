@@ -4,89 +4,57 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 214 20% 10%;
+    --foreground: 210 20% 95%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 214 20% 13%;
+    --card-foreground: 210 20% 95%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 214 20% 13%;
+    --popover-foreground: 210 20% 95%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 200 85% 56%;
+    --primary-foreground: 214 20% 8%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 214 18% 18%;
+    --secondary-foreground: 210 20% 85%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 214 18% 18%;
+    --muted-foreground: 210 15% 55%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 200 85% 56%;
+    --accent-foreground: 214 20% 8%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive: 0 75% 55%;
+    --destructive-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 214 15% 20%;
+    --input: 214 15% 20%;
+    --ring: 200 85% 56%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
 
-    --sidebar-background: 0 0% 98%;
+    --sidebar-background: 214 22% 8%;
+    --sidebar-foreground: 210 20% 85%;
+    --sidebar-primary: 200 85% 56%;
+    --sidebar-primary-foreground: 214 20% 8%;
+    --sidebar-accent: 214 18% 18%;
+    --sidebar-accent-foreground: 210 20% 85%;
+    --sidebar-border: 214 15% 20%;
+    --sidebar-ring: 200 85% 56%;
 
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* NeMAX custom vars */
+    --tg-blue: #2aabee;
+    --tg-blue-dark: #1a96d4;
+    --tg-bg: #17212b;
+    --tg-surface: #1e2c3a;
+    --tg-surface2: #242f3d;
+    --tg-border: #2b3845;
+    --tg-text: #e8edf2;
+    --tg-text-muted: #7d8e9e;
+    --tg-green: #4caf76;
+    --tg-red: #e53935;
+    --tg-badge: #e53935;
   }
 }
 
@@ -95,7 +63,200 @@
     @apply border-border;
   }
 
+  html {
+    font-family: "IBM Plex Sans", sans-serif;
+  }
+
   body {
     @apply bg-background text-foreground;
+    background-color: var(--tg-bg);
+    color: var(--tg-text);
+    font-family: "IBM Plex Sans", sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    overflow: hidden;
   }
+}
+
+/* Scrollbar */
+::-webkit-scrollbar {
+  width: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--tg-border);
+  border-radius: 2px;
+}
+
+/* Animations */
+@keyframes fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.4);
+    opacity: 0;
+  }
+}
+
+@keyframes typing {
+  0%,
+  60%,
+  100% {
+    opacity: 0.3;
+    transform: translateY(0);
+  }
+  30% {
+    opacity: 1;
+    transform: translateY(-3px);
+  }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease forwards;
+}
+.animate-slide-up {
+  animation: slide-up 0.35s ease forwards;
+}
+.animate-scale-in {
+  animation: scale-in 0.25s ease forwards;
+}
+
+/* Mobile frame */
+.mobile-frame {
+  width: 390px;
+  height: 844px;
+  max-height: 100vh;
+  border-radius: 40px;
+  overflow: hidden;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 40px 80px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  background: var(--tg-bg);
+}
+
+/* Nav active state */
+.nav-item-active {
+  color: var(--tg-blue) !important;
+}
+
+/* Message bubbles */
+.bubble-out {
+  background: linear-gradient(135deg, #2b6cb0, #2aabee);
+  border-radius: 18px 18px 4px 18px;
+}
+.bubble-in {
+  background: var(--tg-surface2);
+  border-radius: 18px 18px 18px 4px;
+}
+
+/* Online indicator */
+.online-dot::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--tg-green);
+  border: 2px solid var(--tg-bg);
+  border-radius: 50%;
+  bottom: 0;
+  right: 0;
+}
+
+/* Typing dots */
+.typing-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--tg-text-muted);
+  animation: typing 1.2s infinite;
+}
+.typing-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
+.typing-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+/* Toggle switch */
+.tg-toggle {
+  width: 44px;
+  height: 26px;
+  border-radius: 13px;
+  background: var(--tg-border);
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.tg-toggle.active {
+  background: var(--tg-blue);
+}
+.tg-toggle::after {
+  content: "";
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: white;
+  top: 3px;
+  left: 3px;
+  transition: transform 0.2s;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+.tg-toggle.active::after {
+  transform: translateX(18px);
+}
+
+/* Ripple effect on tap */
+.tap-highlight {
+  -webkit-tap-highlight-color: rgba(42, 171, 238, 0.15);
+  transition: background 0.15s;
+}
+.tap-highlight:active {
+  background: rgba(42, 171, 238, 0.08) !important;
+}
+
+/* Glass effect */
+.glass {
+  background: rgba(30, 44, 58, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
