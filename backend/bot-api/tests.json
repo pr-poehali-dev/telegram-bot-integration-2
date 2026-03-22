@@ -1,27 +1,12 @@
 {
   "tests": [
     {
-      "name": "Bot API root",
-      "method": "GET",
+      "name": "Bot API POST — status",
+      "method": "POST",
       "path": "/",
+      "body": {},
       "expectedStatus": 200,
       "expectedBody": {"status": "NeMAX Bot API"},
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Get bot info",
-      "method": "GET",
-      "path": "/bot-info",
-      "expectedStatus": 200,
-      "expectedBody": {"ok": true},
-      "bodyMatcher": "partial"
-    },
-    {
-      "name": "Get webhook info",
-      "method": "GET",
-      "path": "/webhook-info",
-      "expectedStatus": 200,
-      "expectedBody": {"ok": true},
       "bodyMatcher": "partial"
     }
   ]

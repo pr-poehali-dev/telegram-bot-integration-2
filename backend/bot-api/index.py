@@ -1,6 +1,7 @@
 """
 API для взаимодействия фронтенда с Telegram-ботом @nemax_robot.
 Позволяет отправлять сообщения, регистрировать webhook и получать историю чата.
+Все действия передаются через поле action в теле POST-запроса.
 """
 import json
 import os
@@ -31,7 +32,6 @@ def handler(event: dict, context) -> dict:
     if event.get("httpMethod") == "OPTIONS":
         return {"statusCode": 200, "headers": CORS, "body": ""}
 
-    path = event.get("path", "/").rstrip("/")
     method = event.get("httpMethod", "GET")
 
     try:
@@ -39,17 +39,15 @@ def handler(event: dict, context) -> dict:
     except (json.JSONDecodeError, TypeError):
         body = {}
 
-    # GET /bot-info — информация о боте
-    if method == "GET" and "/bot-info" in path:
-        result = tg_request("getMe", {})
-        return {
-            "statusCode": 200,
-            "headers": CORS,
-            "body": json.dumps(result)
-        }
+    action = body.get("action", "")
 
-    # POST /send — отправить сообщение через бота
-    if method == "POST" and "/send" in path:
+    # GET — информация о боте
+    if method == "GET":
+        result = tg_request("getMe", {})
+        return {"statusCode": 200, "headers": CORS, "body": json.dumps(result)}
+
+    # action=send — отправить сообщение через бота
+    if action == "send":
         chat_id = body.get("chat_id")
         text = body.get("text", "")
         if not chat_id or not text:
@@ -65,8 +63,8 @@ def handler(event: dict, context) -> dict:
         })
         return {"statusCode": 200, "headers": CORS, "body": json.dumps(result)}
 
-    # POST /set-webhook — зарегистрировать webhook URL
-    if method == "POST" and "/set-webhook" in path:
+    # action=set-webhook — зарегистрировать webhook URL
+    if action == "set-webhook":
         webhook_url = body.get("url")
         if not webhook_url:
             return {
@@ -80,13 +78,13 @@ def handler(event: dict, context) -> dict:
         })
         return {"statusCode": 200, "headers": CORS, "body": json.dumps(result)}
 
-    # GET /webhook-info — статус webhook
-    if method == "GET" and "/webhook-info" in path:
+    # action=webhook-info — статус webhook
+    if action == "webhook-info":
         result = tg_request("getWebhookInfo", {})
         return {"statusCode": 200, "headers": CORS, "body": json.dumps(result)}
 
     return {
         "statusCode": 200,
         "headers": CORS,
-        "body": json.dumps({"status": "NeMAX Bot API", "endpoints": ["/bot-info", "/send", "/set-webhook", "/webhook-info"]})
+        "body": json.dumps({"status": "NeMAX Bot API", "actions": ["send", "set-webhook", "webhook-info"]})
     }
