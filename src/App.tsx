@@ -1,12 +1,9 @@
 import { useState } from "react";
 import Icon from "@/components/ui/icon";
-import { auth } from "@/lib/firebase";
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signOut,
-  updateProfile,
-} from "firebase/auth";
+import LoginScreen from "@/components/LoginScreen";
+import ChatsScreen from "@/components/ChatsScreen";
+import MainScreens from "@/components/MainScreens";
+import BottomNav from "@/components/BottomNav";
 
 type Screen = "login" | "chats" | "chat" | "profile" | "notifications" | "settings" | "history" | "help";
 
@@ -79,41 +76,6 @@ const HISTORY: HistoryItem[] = [
   { id: 6, action: "Экспорт данных выполнен", time: "22 марта, 14:00", icon: "Download", color: "#a855f7" },
 ];
 
-const SETTINGS_GROUPS = [
-  {
-    title: "Аккаунт",
-    items: [
-      { icon: "User", label: "Профиль Telegram", value: "@nemax_user", toggle: undefined },
-      { icon: "Phone", label: "Номер телефона", value: "+7 ••• ••• 42", toggle: undefined },
-      { icon: "Lock", label: "Пароль", value: "Изменить", toggle: undefined },
-    ]
-  },
-  {
-    title: "Безопасность",
-    items: [
-      { icon: "Shield", label: "2FA аутентификация", value: "", toggle: "2fa" },
-      { icon: "Key", label: "Шифрование данных", value: "", toggle: "encrypt" },
-      { icon: "Eye", label: "Скрыть номер телефона", value: "", toggle: "hidePhone" },
-    ]
-  },
-  {
-    title: "Синхронизация",
-    items: [
-      { icon: "RefreshCw", label: "Автосинхронизация", value: "", toggle: "autoSync" },
-      { icon: "Cloud", label: "Резервное копирование", value: "Ежедневно", toggle: undefined },
-      { icon: "Download", label: "Экспорт данных", value: ">", toggle: undefined },
-    ]
-  },
-  {
-    title: "Уведомления",
-    items: [
-      { icon: "Bell", label: "Push-уведомления", value: "", toggle: "pushNotif" },
-      { icon: "MessageSquare", label: "Уведомления от бота", value: "", toggle: "botNotif" },
-      { icon: "Volume2", label: "Звуки", value: "", toggle: "sound" },
-    ]
-  }
-];
-
 export default function App() {
   const [activeTab, setActiveTab] = useState<Screen>("chats");
   const [activeChat, setActiveChat] = useState<Chat | null>(null);
@@ -129,7 +91,6 @@ export default function App() {
   const [code, setCode] = useState("");
   const [notifs, setNotifs] = useState<Notification[]>(NOTIFICATIONS_DATA);
 
-  // Auth mode state
   const [authMethod, setAuthMethod] = useState<"telegram" | "email">("telegram");
   const [emailMode, setEmailMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("");
@@ -154,256 +115,23 @@ export default function App() {
     }, 900);
   }
 
-  function handleLogin() {
-    if (loginStep === "phone") {
-      setLoginStep("code");
-    } else if (loginStep === "code") {
-      setLoginStep("done");
-      setTimeout(() => { setLoggedIn(true); setActiveTab("chats"); }, 900);
-    }
-  }
-
-  async function handleEmailAuth() {
-    setAuthError("");
-    setAuthLoading(true);
-    try {
-      if (emailMode === "register") {
-        const cred = await createUserWithEmailAndPassword(auth, email, password);
-        if (displayName.trim()) {
-          await updateProfile(cred.user, { displayName: displayName.trim() });
-        }
-        setCurrentUser({ name: displayName || email.split("@")[0], email });
-      } else {
-        const cred = await signInWithEmailAndPassword(auth, email, password);
-        setCurrentUser({
-          name: cred.user.displayName || cred.user.email?.split("@")[0] || "Пользователь",
-          email: cred.user.email || email,
-        });
-      }
-      setLoginStep("done");
-      setTimeout(() => { setLoggedIn(true); setActiveTab("chats"); }, 900);
-    } catch (err: unknown) {
-      const code = (err as { code?: string })?.code || "";
-      if (code === "auth/email-already-in-use") setAuthError("Email уже зарегистрирован");
-      else if (code === "auth/wrong-password" || code === "auth/invalid-credential") setAuthError("Неверный email или пароль");
-      else if (code === "auth/user-not-found") setAuthError("Пользователь не найден");
-      else if (code === "auth/weak-password") setAuthError("Пароль должен быть не менее 6 символов");
-      else if (code === "auth/invalid-email") setAuthError("Неверный формат email");
-      else if (code === "auth/too-many-requests") setAuthError("Слишком много попыток. Попробуйте позже");
-      else setAuthError("Ошибка входа. Проверьте данные");
-    } finally {
-      setAuthLoading(false);
-    }
-  }
-
   if (!loggedIn) {
     return (
-      <div className="fixed inset-0 flex items-center justify-center" style={{ background: "linear-gradient(135deg, #0d1821 0%, #17212b 60%, #1a2d3d 100%)" }}>
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(5)].map((_, i) => (
-            <div key={i} className="absolute rounded-full" style={{
-              width: `${180 + i * 90}px`, height: `${180 + i * 90}px`,
-              border: "1px solid rgba(42,171,238,0.08)",
-              top: "50%", left: "50%", transform: "translate(-50%, -50%)"
-            }} />
-          ))}
-        </div>
-
-        <div className="mobile-frame flex flex-col" style={{ background: "var(--tg-bg)" }}>
-          {/* Status bar */}
-          <div className="flex items-center justify-between px-6 pt-4 pb-1 text-xs shrink-0" style={{ color: "var(--tg-text)" }}>
-            <span className="font-semibold">9:41</span>
-            <div className="flex items-center gap-1.5"><Icon name="Signal" size={12} /><Icon name="Wifi" size={12} /><Icon name="Battery" size={12} /></div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto flex flex-col items-center justify-center px-8 py-6 animate-fade-in">
-            {/* Logo */}
-            <div className="mb-6 flex flex-col items-center">
-              <div className="relative mb-3">
-                <div className="w-20 h-20 rounded-[24px] flex items-center justify-center text-4xl font-bold"
-                  style={{ background: "linear-gradient(145deg, #1a96d4 0%, #2AABEE 100%)", boxShadow: "0 12px 40px rgba(42,171,238,0.45)" }}>
-                  N
-                </div>
-                <div className="absolute -bottom-1.5 -right-1.5 w-6 h-6 rounded-full flex items-center justify-center"
-                  style={{ background: "#4caf76", border: "2px solid var(--tg-bg)" }}>
-                  <Icon name="Shield" size={11} color="white" />
-                </div>
-              </div>
-              <h1 className="text-3xl font-bold tracking-tight" style={{ color: "var(--tg-text)" }}>NeMAX</h1>
-              <p className="text-xs mt-1 font-medium" style={{ color: "var(--tg-text-muted)" }}>Безопасный мессенджер</p>
-            </div>
-
-            {/* Success state */}
-            {loginStep === "done" ? (
-              <div className="flex flex-col items-center gap-3 animate-scale-in">
-                <div className="w-16 h-16 rounded-full flex items-center justify-center"
-                  style={{ background: "rgba(76,175,118,0.15)", border: "2px solid #4caf76" }}>
-                  <Icon name="Check" size={32} color="#4caf76" />
-                </div>
-                <p className="text-base font-semibold" style={{ color: "var(--tg-text)" }}>Вход выполнен!</p>
-              </div>
-
-            ) : loginStep === "code" ? (
-              /* Telegram OTP step */
-              <div className="w-full space-y-5 animate-slide-up">
-                <div className="text-center">
-                  <p className="text-base font-semibold" style={{ color: "var(--tg-text)" }}>Код подтверждения</p>
-                  <p className="text-sm mt-1" style={{ color: "var(--tg-text-muted)" }}>Отправили код на {phone || "+7 (999) 000-00-00"}</p>
-                </div>
-                <div className="flex gap-3 justify-center">
-                  {[0,1,2,3,4].map(i => (
-                    <input key={i} type="text" maxLength={1}
-                      className="text-center text-xl font-bold rounded-xl outline-none transition-all"
-                      style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)", height: "52px", width: "44px" }}
-                      value={code[i] || ""}
-                      onChange={e => {
-                        const val = e.target.value;
-                        const arr = (code + "     ").split("");
-                        arr[i] = val;
-                        setCode(arr.join("").trim());
-                        if (val && e.target.nextSibling) (e.target.nextSibling as HTMLInputElement).focus?.();
-                      }}
-                    />
-                  ))}
-                </div>
-                <button onClick={handleLogin} className="w-full py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-95"
-                  style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)", color: "white" }}>
-                  Подтвердить
-                </button>
-                <p className="text-center text-sm" style={{ color: "var(--tg-text-muted)" }}>
-                  Не получили код? <span style={{ color: "var(--tg-blue)" }} className="cursor-pointer">Отправить снова</span>
-                </p>
-                <button onClick={() => setLoginStep("phone")} className="w-full text-center text-sm" style={{ color: "var(--tg-text-muted)" }}>
-                  ← Назад
-                </button>
-              </div>
-
-            ) : (
-              /* Auth tabs */
-              <div className="w-full animate-slide-up">
-                {/* Method tabs */}
-                <div className="flex rounded-2xl p-1 mb-5" style={{ background: "var(--tg-surface)" }}>
-                  {([
-                    { key: "telegram", label: "Telegram", emoji: "✈️" },
-                    { key: "email", label: "Email", emoji: "📧" },
-                  ] as { key: "telegram" | "email"; label: string; emoji: string }[]).map(tab => (
-                    <button key={tab.key} onClick={() => { setAuthMethod(tab.key); setAuthError(""); }}
-                      className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-all"
-                      style={{
-                        background: authMethod === tab.key ? "var(--tg-blue)" : "transparent",
-                        color: authMethod === tab.key ? "white" : "var(--tg-text-muted)"
-                      }}>
-                      <span>{tab.emoji}</span> {tab.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* TELEGRAM tab */}
-                {authMethod === "telegram" && (
-                  <div className="space-y-4">
-                    <div className="text-center mb-1">
-                      <p className="text-sm font-medium" style={{ color: "var(--tg-text-muted)" }}>Введите номер, привязанный к Telegram</p>
-                    </div>
-                    <input type="tel" placeholder="+7 (999) 000-00-00" value={phone} onChange={e => setPhone(e.target.value)}
-                      className="w-full px-4 py-3.5 rounded-2xl text-base outline-none"
-                      style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}
-                    />
-                    <button onClick={handleLogin} className="w-full py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-95"
-                      style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)", color: "white" }}>
-                      Далее →
-                    </button>
-                    <div className="flex items-center gap-3">
-                      <div className="flex-1 h-px" style={{ background: "var(--tg-border)" }} />
-                      <span className="text-xs" style={{ color: "var(--tg-text-muted)" }}>или</span>
-                      <div className="flex-1 h-px" style={{ background: "var(--tg-border)" }} />
-                    </div>
-                    <button onClick={handleLogin} className="w-full py-3.5 rounded-2xl font-semibold text-sm flex items-center justify-center gap-2 transition-all active:scale-95"
-                      style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}>
-                      <span className="text-base">✈️</span> Открыть в Telegram
-                    </button>
-                  </div>
-                )}
-
-                {/* EMAIL tab */}
-                {authMethod === "email" && (
-                  <div className="space-y-3">
-                    {/* Login / Register sub-tabs */}
-                    <div className="flex rounded-xl overflow-hidden mb-1" style={{ border: "1px solid var(--tg-border)" }}>
-                      {([
-                        { key: "login", label: "Войти" },
-                        { key: "register", label: "Регистрация" },
-                      ] as { key: "login" | "register"; label: string }[]).map(m => (
-                        <button key={m.key} onClick={() => { setEmailMode(m.key); setAuthError(""); }}
-                          className="flex-1 py-2 text-sm font-semibold transition-all"
-                          style={{
-                            background: emailMode === m.key ? "rgba(42,171,238,0.15)" : "transparent",
-                            color: emailMode === m.key ? "var(--tg-blue)" : "var(--tg-text-muted)"
-                          }}>
-                          {m.label}
-                        </button>
-                      ))}
-                    </div>
-
-                    {emailMode === "register" && (
-                      <input type="text" placeholder="Имя" value={displayName} onChange={e => setDisplayName(e.target.value)}
-                        className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
-                        style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}
-                      />
-                    )}
-                    <input type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)}
-                      className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
-                      style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}
-                    />
-                    <input type="password" placeholder="Пароль" value={password} onChange={e => setPassword(e.target.value)}
-                      onKeyDown={e => e.key === "Enter" && handleEmailAuth()}
-                      className="w-full px-4 py-3 rounded-2xl text-sm outline-none"
-                      style={{ background: "var(--tg-surface)", border: "1.5px solid var(--tg-border)", color: "var(--tg-text)" }}
-                    />
-
-                    {authError && (
-                      <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl animate-fade-in"
-                        style={{ background: "rgba(229,57,53,0.1)", border: "1px solid rgba(229,57,53,0.25)" }}>
-                        <Icon name="AlertCircle" size={14} color="var(--tg-red)" />
-                        <p className="text-xs font-medium" style={{ color: "var(--tg-red)" }}>{authError}</p>
-                      </div>
-                    )}
-
-                    <button onClick={handleEmailAuth} disabled={authLoading}
-                      className="w-full py-3.5 rounded-2xl font-semibold text-base transition-all active:scale-95 flex items-center justify-center gap-2"
-                      style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)", color: "white", opacity: authLoading ? 0.7 : 1 }}>
-                      {authLoading ? (
-                        <>
-                          <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                          <span>Загрузка...</span>
-                        </>
-                      ) : (
-                        emailMode === "login" ? "Войти" : "Создать аккаунт"
-                      )}
-                    </button>
-
-                    {emailMode === "login" && (
-                      <p className="text-center text-xs" style={{ color: "var(--tg-text-muted)" }}>
-                        <span style={{ color: "var(--tg-blue)" }} className="cursor-pointer">Забыли пароль?</span>
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                <div className="flex items-center gap-2 mt-4 p-3 rounded-xl" style={{ background: "rgba(42,171,238,0.07)", border: "1px solid rgba(42,171,238,0.18)" }}>
-                  <Icon name="Lock" size={13} color="#2AABEE" />
-                  <p className="text-xs" style={{ color: "var(--tg-text-muted)" }}>Данные шифруются E2E. Мы не храним пароли.</p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <div className="px-8 pb-5 text-center shrink-0">
-            <p className="text-xs" style={{ color: "var(--tg-text-muted)" }}>
-              Продолжая, вы соглашаетесь с <span style={{ color: "var(--tg-blue)" }}>условиями использования</span>
-            </p>
-          </div>
-        </div>
-      </div>
+      <LoginScreen
+        loginStep={loginStep} setLoginStep={setLoginStep}
+        phone={phone} setPhone={setPhone}
+        code={code} setCode={setCode}
+        authMethod={authMethod} setAuthMethod={setAuthMethod}
+        emailMode={emailMode} setEmailMode={setEmailMode}
+        email={email} setEmail={setEmail}
+        password={password} setPassword={setPassword}
+        displayName={displayName} setDisplayName={setDisplayName}
+        authError={authError} setAuthError={setAuthError}
+        authLoading={authLoading} setAuthLoading={setAuthLoading}
+        setCurrentUser={setCurrentUser}
+        setLoggedIn={setLoggedIn}
+        setActiveTab={setActiveTab}
+      />
     );
   }
 
@@ -420,416 +148,55 @@ export default function App() {
       </div>
 
       <div className="mobile-frame flex flex-col" style={{ background: "var(--tg-bg)" }}>
-        {/* Status bar */}
         <div className="flex items-center justify-between px-6 pt-4 pb-1 text-xs shrink-0" style={{ color: "var(--tg-text)" }}>
           <span className="font-semibold">9:41</span>
           <div className="flex items-center gap-1.5"><Icon name="Signal" size={12} /><Icon name="Wifi" size={12} /><Icon name="Battery" size={12} /></div>
         </div>
 
         <div className="flex-1 overflow-hidden flex flex-col">
-
-          {/* ── CHATS LIST ── */}
-          {activeTab === "chats" && !activeChat && (
-            <div className="flex flex-col h-full animate-fade-in">
-              <div className="px-4 py-3 flex items-center justify-between shrink-0">
-                <h2 className="text-xl font-semibold" style={{ color: "var(--tg-text)" }}>Сообщения</h2>
-                <div className="flex gap-2">
-                  <button className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--tg-surface)" }}>
-                    <Icon name="Search" size={16} color="var(--tg-text-muted)" />
-                  </button>
-                  <button className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--tg-surface)" }}>
-                    <Icon name="Edit" size={16} color="var(--tg-blue)" />
-                  </button>
-                </div>
-              </div>
-              <div className="px-4 mb-3 shrink-0">
-                <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: "var(--tg-surface)" }}>
-                  <Icon name="Search" size={14} color="var(--tg-text-muted)" />
-                  <span className="text-sm" style={{ color: "var(--tg-text-muted)" }}>Поиск по чатам...</span>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                {CHATS.map((chat, i) => (
-                  <button key={chat.id} onClick={() => setActiveChat(chat)}
-                    className="w-full flex items-center gap-3 px-4 py-3 tap-highlight text-left"
-                    style={{ animationDelay: `${i * 55}ms`, borderBottom: "1px solid rgba(43,56,69,0.5)" }}>
-                    <div className="relative shrink-0">
-                      <div className="w-12 h-12 rounded-full flex items-center justify-center text-xl font-semibold"
-                        style={{ background: chat.bot ? "linear-gradient(135deg, #1a96d4, #2AABEE)" : "var(--tg-surface2)" }}>
-                        {chat.avatar}
-                      </div>
-                      {chat.online && <div className="absolute bottom-0 right-0 w-3 h-3 rounded-full" style={{ background: "var(--tg-green)", border: "2px solid var(--tg-bg)" }} />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-sm" style={{ color: "var(--tg-text)" }}>{chat.name}</span>
-                        <span className="text-xs shrink-0 ml-2" style={{ color: "var(--tg-text-muted)" }}>{chat.time}</span>
-                      </div>
-                      <div className="flex items-center justify-between mt-0.5">
-                        <span className="text-sm truncate" style={{ color: "var(--tg-text-muted)" }}>{chat.lastMessage}</span>
-                        {chat.unread > 0 && (
-                          <span className="ml-2 min-w-5 h-5 px-1.5 rounded-full text-xs font-bold flex items-center justify-center shrink-0"
-                            style={{ background: "var(--tg-blue)", color: "white" }}>
-                            {chat.unread}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </button>
-                ))}
-              </div>
-            </div>
+          {activeTab === "chats" && (
+            <ChatsScreen
+              activeChat={activeChat}
+              setActiveChat={setActiveChat}
+              messages={messages}
+              messageText={messageText}
+              setMessageText={setMessageText}
+              sendMessage={sendMessage}
+              chats={CHATS}
+            />
           )}
 
-          {/* ── CHAT DETAIL ── */}
-          {activeTab === "chats" && activeChat && (
-            <div className="flex flex-col h-full animate-fade-in">
-              <div className="px-4 py-3 flex items-center gap-3 shrink-0" style={{ borderBottom: "1px solid var(--tg-border)" }}>
-                <button onClick={() => setActiveChat(null)} className="shrink-0 tap-highlight">
-                  <Icon name="ChevronLeft" size={26} color="var(--tg-blue)" />
-                </button>
-                <div className="relative shrink-0">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-base"
-                    style={{ background: activeChat.bot ? "linear-gradient(135deg, #1a96d4, #2AABEE)" : "var(--tg-surface2)" }}>
-                    {activeChat.avatar}
-                  </div>
-                  {activeChat.online && <div className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full" style={{ background: "var(--tg-green)", border: "2px solid var(--tg-bg)" }} />}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm leading-tight" style={{ color: "var(--tg-text)" }}>{activeChat.name}</p>
-                  <div className="flex items-center gap-1.5 mt-0.5">
-                    <div className="flex gap-0.5">{[1,2,3].map(i => <div key={i} className="typing-dot" />)}</div>
-                    <span className="text-xs" style={{ color: "var(--tg-blue)" }}>печатает...</span>
-                  </div>
-                </div>
-                <button className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--tg-surface)" }}>
-                  <Icon name="Phone" size={16} color="var(--tg-blue)" />
-                </button>
-              </div>
-
-              <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-                {messages.map((msg, i) => (
-                  <div key={msg.id} className={`flex ${msg.out ? "justify-end" : "justify-start"} animate-slide-up`}
-                    style={{ animationDelay: `${i * 40}ms` }}>
-                    <div className={`max-w-[76%] px-3.5 py-2.5 ${msg.out ? "bubble-out" : "bubble-in"}`}>
-                      <p className="text-sm leading-relaxed" style={{ color: "var(--tg-text)" }}>{msg.text}</p>
-                      <div className="flex items-center justify-end gap-1 mt-1">
-                        <span className="text-[11px]" style={{ color: msg.out ? "rgba(255,255,255,0.6)" : "var(--tg-text-muted)" }}>{msg.time}</span>
-                        {msg.out && <Icon name={msg.status === "read" ? "CheckCheck" : "Check"} size={12} color={msg.status === "read" ? "#2AABEE" : "rgba(255,255,255,0.5)"} />}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="px-4 py-3 flex items-center gap-2 shrink-0" style={{ borderTop: "1px solid var(--tg-border)" }}>
-                <button className="w-9 h-9 rounded-full flex items-center justify-center shrink-0" style={{ background: "var(--tg-surface)" }}>
-                  <Icon name="Paperclip" size={17} color="var(--tg-text-muted)" />
-                </button>
-                <input value={messageText} onChange={e => setMessageText(e.target.value)}
-                  onKeyDown={e => e.key === "Enter" && sendMessage()}
-                  placeholder="Сообщение..."
-                  className="flex-1 px-3.5 py-2.5 rounded-2xl text-sm outline-none"
-                  style={{ background: "var(--tg-surface)", color: "var(--tg-text)", border: "1px solid var(--tg-border)" }}
-                />
-                <button onClick={sendMessage}
-                  className="w-9 h-9 rounded-full flex items-center justify-center shrink-0 transition-all active:scale-90"
-                  style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)" }}>
-                  <Icon name="Send" size={16} color="white" />
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── NOTIFICATIONS ── */}
-          {activeTab === "notifications" && (
-            <div className="flex flex-col h-full animate-fade-in">
-              <div className="px-4 py-3 flex items-center justify-between shrink-0">
-                <h2 className="text-xl font-semibold" style={{ color: "var(--tg-text)" }}>Уведомления</h2>
-                {unreadNotifs > 0 && (
-                  <button className="text-sm font-medium" style={{ color: "var(--tg-blue)" }}
-                    onClick={() => setNotifs(notifs.map(n => ({ ...n, read: true })))}>
-                    Прочитать все
-                  </button>
-                )}
-              </div>
-              <div className="flex-1 overflow-y-auto">
-                {notifs.map((n) => (
-                  <button key={n.id} onClick={() => setNotifs(notifs.map(x => x.id === n.id ? { ...x, read: true } : x))}
-                    className="w-full flex items-start gap-3 px-4 py-4 tap-highlight text-left"
-                    style={{ background: n.read ? "transparent" : "rgba(42,171,238,0.05)", borderBottom: "1px solid var(--tg-border)" }}>
-                    <div className="w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0"
-                      style={{ background: "var(--tg-surface2)" }}>
-                      {n.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <span className="font-semibold text-sm" style={{ color: "var(--tg-text)" }}>{n.title}</span>
-                        <span className="text-xs ml-2 shrink-0" style={{ color: "var(--tg-text-muted)" }}>{n.time}</span>
-                      </div>
-                      <p className="text-sm mt-0.5 leading-relaxed" style={{ color: "var(--tg-text-muted)" }}>{n.body}</p>
-                    </div>
-                    {!n.read && <div className="w-2.5 h-2.5 rounded-full mt-1.5 shrink-0" style={{ background: "var(--tg-blue)" }} />}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* ── SETTINGS ── */}
-          {activeTab === "settings" && (
-            <div className="flex flex-col h-full overflow-y-auto animate-fade-in">
-              <div className="px-4 py-3 shrink-0">
-                <h2 className="text-xl font-semibold" style={{ color: "var(--tg-text)" }}>Настройки</h2>
-              </div>
-              <div className="mx-4 mb-5 p-4 rounded-2xl flex items-center gap-3" style={{ background: "var(--tg-surface)" }}>
-                <div className="w-14 h-14 rounded-full flex items-center justify-center text-2xl font-bold"
-                  style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)" }}>
-                  {(currentUser?.name || auth.currentUser?.displayName || "U")[0].toUpperCase()}
-                </div>
-                <div>
-                  <p className="font-semibold" style={{ color: "var(--tg-text)" }}>
-                    {currentUser?.name || auth.currentUser?.displayName || "Пользователь"}
-                  </p>
-                  <p className="text-sm" style={{ color: "var(--tg-blue)" }}>
-                    {authMethod === "email" ? (currentUser?.email || "") : "@nemax_user"}
-                  </p>
-                </div>
-                <Icon name="ChevronRight" size={20} color="var(--tg-text-muted)" className="ml-auto" />
-              </div>
-
-              {SETTINGS_GROUPS.map(group => (
-                <div key={group.title} className="mb-5">
-                  <p className="px-4 mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: "var(--tg-text-muted)" }}>{group.title}</p>
-                  <div className="mx-4 rounded-2xl overflow-hidden" style={{ background: "var(--tg-surface)" }}>
-                    {group.items.map((item, i) => (
-                      <div key={item.label} className={`flex items-center gap-3 px-4 py-3.5 tap-highlight ${i > 0 ? "border-t" : ""}`}
-                        style={{ borderColor: "var(--tg-border)" }}>
-                        <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0"
-                          style={{ background: "rgba(42,171,238,0.12)" }}>
-                          <Icon name={item.icon} size={16} color="var(--tg-blue)" />
-                        </div>
-                        <span className="flex-1 text-sm font-medium" style={{ color: "var(--tg-text)" }}>{item.label}</span>
-                        {item.toggle ? (
-                          <div className={`tg-toggle ${toggles[item.toggle] ? "active" : ""}`}
-                            onClick={() => setToggles(prev => ({ ...prev, [item.toggle!]: !prev[item.toggle!] }))} />
-                        ) : (
-                          <span className="text-sm" style={{ color: "var(--tg-text-muted)" }}>{item.value}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-
-              <div className="mx-4 mb-6">
-                <button className="w-full py-3.5 rounded-2xl text-center font-semibold transition-all active:scale-95"
-                  style={{ background: "rgba(229,57,53,0.1)", color: "var(--tg-red)", border: "1px solid rgba(229,57,53,0.2)" }}
-                  onClick={async () => {
-                    if (authMethod === "email") await signOut(auth).catch(() => {});
-                    setLoggedIn(false);
-                    setLoginStep("phone");
-                    setCurrentUser(null);
-                    setEmail(""); setPassword(""); setDisplayName("");
-                  }}>
-                  Выйти из аккаунта
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* ── HISTORY ── */}
-          {activeTab === "history" && (
-            <div className="flex flex-col h-full animate-fade-in">
-              <div className="px-4 py-3 shrink-0">
-                <h2 className="text-xl font-semibold" style={{ color: "var(--tg-text)" }}>История</h2>
-                <p className="text-sm mt-0.5" style={{ color: "var(--tg-text-muted)" }}>Журнал действий аккаунта</p>
-              </div>
-              <div className="flex-1 overflow-y-auto px-4 pt-2 pb-4">
-                <div className="relative pl-5">
-                  <div className="absolute left-[19px] top-0 bottom-0 w-0.5" style={{ background: "var(--tg-border)" }} />
-                  <div className="space-y-5">
-                    {HISTORY.map((item, i) => (
-                      <div key={item.id} className="flex items-start gap-4 animate-fade-in" style={{ animationDelay: `${i * 70}ms` }}>
-                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 z-10 -ml-5"
-                          style={{ background: "var(--tg-surface2)", border: `2px solid ${item.color}`, boxShadow: `0 0 10px ${item.color}30` }}>
-                          <Icon name={item.icon} size={16} color={item.color} />
-                        </div>
-                        <div className="flex-1 pt-1.5 pb-1">
-                          <p className="text-sm font-medium" style={{ color: "var(--tg-text)" }}>{item.action}</p>
-                          <p className="text-xs mt-0.5" style={{ color: "var(--tg-text-muted)" }}>{item.time}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── PROFILE ── */}
-          {activeTab === "profile" && (
-            <div className="flex flex-col h-full overflow-y-auto animate-fade-in">
-              <div className="px-4 py-3 flex items-center justify-between shrink-0">
-                <h2 className="text-xl font-semibold" style={{ color: "var(--tg-text)" }}>Профиль</h2>
-                <button className="text-sm font-medium" style={{ color: "var(--tg-blue)" }}>Изменить</button>
-              </div>
-
-              <div className="flex flex-col items-center py-6 px-4">
-                <div className="relative mb-4">
-                  <div className="w-24 h-24 rounded-full flex items-center justify-center text-4xl font-bold"
-                    style={{ background: "linear-gradient(135deg, #1a96d4, #2AABEE)", boxShadow: "0 6px 24px rgba(42,171,238,0.45)" }}>
-                    {(currentUser?.name || auth.currentUser?.displayName || "U")[0].toUpperCase()}
-                  </div>
-                  <div className="absolute bottom-0.5 right-0.5 w-7 h-7 rounded-full flex items-center justify-center"
-                    style={{ background: "var(--tg-blue)", border: "2.5px solid var(--tg-bg)" }}>
-                    <Icon name="Camera" size={12} color="white" />
-                  </div>
-                  <div className="absolute bottom-0 left-0 w-4 h-4 rounded-full" style={{ background: "var(--tg-green)", border: "2px solid var(--tg-bg)" }} />
-                </div>
-                <h3 className="text-xl font-bold" style={{ color: "var(--tg-text)" }}>
-                  {currentUser?.name || auth.currentUser?.displayName || "Пользователь"}
-                </h3>
-                <p className="text-sm mt-1 font-medium" style={{ color: "var(--tg-blue)" }}>
-                  {authMethod === "email"
-                    ? (currentUser?.email || auth.currentUser?.email || "")
-                    : (phone ? `+${phone.replace(/\D/g, "")}` : "@nemax_user")}
-                </p>
-                <div className="flex items-center gap-1.5 mt-1">
-                  <Icon name={authMethod === "email" ? "Mail" : "Phone"} size={12} color="var(--tg-text-muted)" />
-                  <span className="text-xs" style={{ color: "var(--tg-text-muted)" }}>
-                    {authMethod === "email" ? "Вход через Email" : "Вход через Telegram"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="flex gap-3 px-4 mb-5">
-                {[{ label: "Сообщений", value: "248" }, { label: "Чатов", value: "12" }, { label: "Дней", value: "34" }].map(s => (
-                  <div key={s.label} className="flex-1 rounded-2xl p-3 text-center" style={{ background: "var(--tg-surface)" }}>
-                    <p className="text-xl font-bold" style={{ color: "var(--tg-blue)" }}>{s.value}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--tg-text-muted)" }}>{s.label}</p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="px-4 mb-4">
-                <div className="rounded-2xl overflow-hidden" style={{ background: "var(--tg-surface)" }}>
-                  {([
-                    { icon: "Mail", label: "Email", value: currentUser?.email || auth.currentUser?.email || "—", color: "" },
-                    { icon: "User", label: "Метод входа", value: authMethod === "email" ? "Email / пароль" : "Telegram", color: "" },
-                    { icon: "Calendar", label: "Зарегистрирован", value: "22 мар 2026", color: "" },
-                    { icon: "Shield", label: "Статус 2FA", value: "Активна", color: "#4caf76" },
-                  ] as { icon: string; label: string; value: string; color: string }[]).map((item, i) => (
-                    <div key={item.label} className={`flex items-center gap-3 px-4 py-3.5 tap-highlight ${i > 0 ? "border-t" : ""}`}
-                      style={{ borderColor: "var(--tg-border)" }}>
-                      <div className="w-8 h-8 rounded-xl flex items-center justify-center shrink-0" style={{ background: "rgba(42,171,238,0.12)" }}>
-                        <Icon name={item.icon} size={16} color="var(--tg-blue)" />
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs" style={{ color: "var(--tg-text-muted)" }}>{item.label}</p>
-                        <p className="text-sm font-semibold mt-0.5" style={{ color: item.color || "var(--tg-text)" }}>{item.value}</p>
-                      </div>
-                      <Icon name="ChevronRight" size={16} color="var(--tg-text-muted)" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="px-4 mb-4">
-                <div className="flex items-center gap-3 p-3.5 rounded-2xl" style={{ background: "rgba(42,171,238,0.08)", border: "1px solid rgba(42,171,238,0.2)" }}>
-                  <span className="text-xl">✈️</span>
-                  <div className="flex-1">
-                    <p className="text-sm font-semibold" style={{ color: "var(--tg-text)" }}>Подключён к Telegram</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--tg-text-muted)" }}>Синхронизация активна</p>
-                  </div>
-                  <div className="w-2.5 h-2.5 rounded-full" style={{ background: "var(--tg-green)" }} />
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── HELP ── */}
-          {activeTab === "help" && (
-            <div className="flex flex-col h-full overflow-y-auto animate-fade-in">
-              <div className="px-4 py-3 shrink-0">
-                <h2 className="text-xl font-semibold" style={{ color: "var(--tg-text)" }}>Справка</h2>
-              </div>
-
-              <div className="mx-4 mb-4 p-4 rounded-2xl flex items-center gap-3"
-                style={{ background: "linear-gradient(135deg, rgba(26,150,212,0.18), rgba(42,171,238,0.08))", border: "1px solid rgba(42,171,238,0.25)" }}>
-                <div className="w-12 h-12 rounded-full flex items-center justify-center text-2xl">🤖</div>
-                <div className="flex-1">
-                  <p className="font-semibold text-sm" style={{ color: "var(--tg-text)" }}>Спросить NeMAX Bot</p>
-                  <p className="text-xs mt-0.5" style={{ color: "var(--tg-text-muted)" }}>Мгновенный ответ на любой вопрос</p>
-                </div>
-                <button className="px-3 py-1.5 rounded-xl text-xs font-bold" style={{ background: "var(--tg-blue)", color: "white" }}
-                  onClick={() => { setActiveTab("chats"); setActiveChat(CHATS[0]); }}>
-                  Открыть
-                </button>
-              </div>
-
-              {[
-                { emoji: "🔐", title: "Безопасность и 2FA", desc: "Настройка двухфакторной аутентификации" },
-                { emoji: "🔄", title: "Синхронизация с Telegram", desc: "Подключение и настройка синхронизации" },
-                { emoji: "🤖", title: "Управление ботом", desc: "Команды и возможности NeMAX Bot" },
-                { emoji: "🔔", title: "Уведомления", desc: "Настройка push-уведомлений и алертов" },
-                { emoji: "📤", title: "Экспорт данных", desc: "Выгрузка истории и персональных данных" },
-                { emoji: "❓", title: "Частые вопросы", desc: "Ответы на популярные вопросы" },
-              ].map((item, i) => (
-                <div key={item.title} className="mx-4 mb-2 p-4 rounded-2xl flex items-center gap-3 tap-highlight cursor-pointer"
-                  style={{ background: "var(--tg-surface)" }}>
-                  <span className="text-2xl">{item.emoji}</span>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm" style={{ color: "var(--tg-text)" }}>{item.title}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "var(--tg-text-muted)" }}>{item.desc}</p>
-                  </div>
-                  <Icon name="ChevronRight" size={16} color="var(--tg-text-muted)" />
-                </div>
-              ))}
-
-              <div className="mx-4 my-4 p-4 rounded-2xl text-center" style={{ background: "var(--tg-surface)" }}>
-                <p className="text-sm font-semibold" style={{ color: "var(--tg-text)" }}>Не нашли ответ?</p>
-                <p className="text-xs mt-1 mb-3" style={{ color: "var(--tg-text-muted)" }}>Ответим в течение 2 часов</p>
-                <button className="px-6 py-2 rounded-xl text-sm font-bold" style={{ background: "var(--tg-blue)", color: "white" }}>
-                  Написать в поддержку
-                </button>
-              </div>
-            </div>
+          {activeTab !== "chats" && (
+            <MainScreens
+              activeTab={activeTab}
+              setActiveTab={setActiveTab}
+              notifs={notifs}
+              setNotifs={setNotifs}
+              unreadNotifs={unreadNotifs}
+              toggles={toggles}
+              setToggles={setToggles}
+              currentUser={currentUser}
+              setCurrentUser={setCurrentUser}
+              authMethod={authMethod}
+              phone={phone}
+              history={HISTORY}
+              setLoggedIn={setLoggedIn}
+              setLoginStep={setLoginStep}
+              setEmail={setEmail}
+              setPassword={setPassword}
+              setDisplayName={setDisplayName}
+              firstChat={CHATS[0]}
+            />
           )}
         </div>
 
-        {/* ── BOTTOM NAV ── */}
         {!activeChat && (
-          <div className="shrink-0 px-1 pb-3 pt-2 glass" style={{ borderTop: "1px solid var(--tg-border)" }}>
-            <div className="flex items-center justify-around">
-              {([
-                { tab: "chats", icon: "MessageCircle", label: "Чаты", badge: unreadChats },
-                { tab: "notifications", icon: "Bell", label: "Уведомления", badge: unreadNotifs },
-                { tab: "history", icon: "Clock", label: "История", badge: 0 },
-                { tab: "settings", icon: "Settings", label: "Настройки", badge: 0 },
-                { tab: "profile", icon: "User", label: "Профиль", badge: 0 },
-                { tab: "help", icon: "HelpCircle", label: "Справка", badge: 0 },
-              ] as { tab: Screen; icon: string; label: string; badge: number }[]).map(({ tab, icon, label, badge }) => (
-                <button key={tab} onClick={() => setActiveTab(tab)}
-                  className="flex flex-col items-center gap-0.5 px-1.5 py-1 relative transition-all"
-                  style={{ color: activeTab === tab ? "var(--tg-blue)" : "var(--tg-text-muted)" }}>
-                  <div className="relative">
-                    <Icon name={icon} size={21} />
-                    {badge > 0 && (
-                      <span className="absolute -top-1.5 -right-1.5 min-w-4 h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
-                        style={{ background: "var(--tg-red)", color: "white" }}>
-                        {badge}
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[8px] font-semibold leading-none">{label}</span>
-                  {activeTab === tab && (
-                    <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-4 h-0.5 rounded-full" style={{ background: "var(--tg-blue)" }} />
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
+          <BottomNav
+            activeTab={activeTab}
+            setActiveTab={setActiveTab}
+            unreadChats={unreadChats}
+            unreadNotifs={unreadNotifs}
+          />
         )}
       </div>
     </div>
